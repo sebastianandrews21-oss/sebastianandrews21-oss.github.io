@@ -1,0 +1,904 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Seb Andrews — GIS & Spatial Analysis Portfolio</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400;1,600&family=Source+Serif+4:ital,opsz,wght@0,8..60,300;0,8..60,400;1,8..60,300;1,8..60,400&family=Fira+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="https://js.arcgis.com/4.29/esri/themes/light/main.css" />
+  <script src="https://js.arcgis.com/4.29/"></script>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --parchment:    #f5f0e8;
+      --parchment-dk: #ece5d4;
+      --parchment-xdk:#ddd3bc;
+      --ink:          #1c1a14;
+      --ink-soft:     #3d3828;
+      --ink-mid:      #6b6350;
+      --ink-light:    #9c9080;
+      --topo-green:   #4a6741;
+      --topo-brown:   #8b6340;
+      --topo-blue:    #3d6b8a;
+      --accent:       #4a6741;
+      --rule:         rgba(60,50,30,0.15);
+      --rule-strong:  rgba(60,50,30,0.3);
+      --serif:   'Playfair Display', Georgia, serif;
+      --body:    'Source Serif 4', Georgia, serif;
+      --mono:    'Fira Mono', 'Courier New', monospace;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: var(--body);
+      background: var(--parchment);
+      color: var(--ink);
+      line-height: 1.6;
+    }
+
+    /* ─── TOPO HEADER ─── */
+    .site-header {
+      position: relative;
+      overflow: hidden;
+      min-height: 340px;
+      background: var(--parchment-dk);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-end;
+      padding-bottom: 2.5rem;
+    }
+
+    /* SVG topo contour background, drawn procedurally */
+    .topo-bg {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      opacity: 0.55;
+    }
+
+    .header-content {
+      position: relative;
+      z-index: 2;
+      text-align: center;
+    }
+
+    .header-name {
+      font-family: var(--serif);
+      font-size: clamp(2.6rem, 5vw, 4.2rem);
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      color: var(--ink);
+      line-height: 1.05;
+    }
+
+    .header-subtitle {
+      font-family: var(--body);
+      font-size: 1rem;
+      font-weight: 300;
+      color: var(--ink-mid);
+      margin-top: 0.5rem;
+      letter-spacing: 0.04em;
+    }
+
+    .header-tools {
+      margin-top: 0.9rem;
+      font-family: var(--mono);
+      font-size: 0.72rem;
+      letter-spacing: 0.12em;
+      color: var(--topo-green);
+      text-transform: uppercase;
+    }
+
+    /* ─── NAV ─── */
+    nav {
+      background: var(--ink);
+      padding: 0 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      height: 48px;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 0;
+      list-style: none;
+    }
+
+    .nav-links a {
+      display: block;
+      padding: 0 1.25rem;
+      height: 48px;
+      line-height: 48px;
+      font-family: var(--mono);
+      font-size: 0.72rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: rgba(245,240,232,0.6);
+      text-decoration: none;
+      border-right: 1px solid rgba(255,255,255,0.07);
+      transition: color 0.2s, background 0.2s;
+    }
+    .nav-links a:first-child { border-left: 1px solid rgba(255,255,255,0.07); }
+    .nav-links a:hover { color: var(--parchment); background: rgba(255,255,255,0.05); }
+
+    .nav-right {
+      font-family: var(--mono);
+      font-size: 0.68rem;
+      color: rgba(245,240,232,0.35);
+      letter-spacing: 0.06em;
+    }
+
+    /* ─── LAYOUT SHELL ─── */
+    .page-body {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 2rem;
+    }
+
+    /* ─── SECTION HEADINGS ─── */
+    .section-heading {
+      font-family: var(--serif);
+      font-size: 1.65rem;
+      font-weight: 400;
+      color: var(--ink);
+      padding: 2.5rem 0 1.25rem;
+      border-bottom: 1px solid var(--rule-strong);
+      margin-bottom: 2rem;
+      display: flex;
+      align-items: baseline;
+      gap: 1rem;
+    }
+    .section-heading span {
+      font-family: var(--mono);
+      font-size: 0.68rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--ink-light);
+      font-weight: 400;
+    }
+
+    /* ─── TAG FILTER ─── */
+    .tag-filter {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .tag-btn {
+      font-family: var(--mono);
+      font-size: 0.68rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      background: transparent;
+      border: 1px solid var(--rule-strong);
+      color: var(--ink-mid);
+      padding: 0.3rem 0.75rem;
+      cursor: pointer;
+      border-radius: 2px;
+      transition: background 0.18s, color 0.18s, border-color 0.18s;
+    }
+    .tag-btn:hover, .tag-btn.active {
+      background: var(--ink);
+      color: var(--parchment);
+      border-color: var(--ink);
+    }
+
+    /* ─── PROJECT GRID ─── */
+    .project-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 1.5px;
+      background: var(--rule);
+      border: 1px solid var(--rule-strong);
+      margin-bottom: 4rem;
+    }
+
+    .project-card {
+      background: var(--parchment);
+      padding: 1.5rem;
+      cursor: pointer;
+      transition: background 0.2s;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      min-height: 180px;
+    }
+    .project-card:hover { background: var(--parchment-dk); }
+    .project-card.hidden { display: none; }
+
+    /* Featured card spans full width */
+    .project-card.featured {
+      grid-column: 1 / -1;
+      flex-direction: row;
+      align-items: flex-start;
+      gap: 2rem;
+      min-height: 240px;
+      background: var(--parchment-dk);
+    }
+    .project-card.featured:hover { background: var(--parchment-xdk); }
+
+    .featured-badge {
+      font-family: var(--mono);
+      font-size: 0.62rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--topo-green);
+      background: rgba(74,103,65,0.1);
+      border: 1px solid rgba(74,103,65,0.25);
+      padding: 0.2rem 0.6rem;
+      border-radius: 2px;
+      align-self: flex-start;
+      white-space: nowrap;
+    }
+
+    .project-card-left {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .project-card-right {
+      width: 280px;
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .project-num {
+      font-family: var(--mono);
+      font-size: 0.65rem;
+      color: var(--ink-light);
+      letter-spacing: 0.08em;
+    }
+
+    .project-title {
+      font-family: var(--serif);
+      font-size: 1.15rem;
+      font-weight: 600;
+      line-height: 1.25;
+      color: var(--ink);
+    }
+
+    .project-card.featured .project-title {
+      font-size: 1.6rem;
+    }
+
+    .project-desc {
+      font-size: 0.88rem;
+      line-height: 1.65;
+      color: var(--ink-soft);
+    }
+
+    .project-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+      margin-top: auto;
+    }
+
+    .project-tag {
+      font-family: var(--mono);
+      font-size: 0.62rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--ink-mid);
+      background: var(--parchment-xdk);
+      padding: 0.2rem 0.55rem;
+      border-radius: 2px;
+    }
+
+    .project-card.featured .project-tag {
+      background: rgba(60,50,30,0.08);
+    }
+
+    .project-link {
+      font-family: var(--mono);
+      font-size: 0.68rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--topo-blue);
+      text-decoration: none;
+      align-self: flex-start;
+      border-bottom: 1px solid rgba(61,107,138,0.3);
+      padding-bottom: 1px;
+      transition: border-color 0.15s;
+      margin-top: auto;
+    }
+    .project-link:hover { border-color: var(--topo-blue); }
+
+    /* scene embed inside featured card */
+    .scene-embed-wrap {
+      width: 100%;
+      height: 100%;
+      min-height: 320px;
+      background: #0a0e14;
+      border-radius: 2px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    #scene-container {
+      width: 100%;
+      height: 100%;
+      min-height: 320px;
+    }
+
+    .scene-loading {
+      position: absolute;
+      inset: 0;
+      background: #0e1219;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.75rem;
+      transition: opacity 0.5s;
+    }
+    .scene-loading.fade { opacity: 0; pointer-events: none; }
+
+    .spin-ring {
+      width: 32px; height: 32px;
+      border: 1.5px solid rgba(180,200,160,0.2);
+      border-top-color: rgba(74,103,65,0.8);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .spin-label {
+      font-family: var(--mono);
+      font-size: 0.62rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: rgba(200,190,170,0.4);
+    }
+
+    .scene-controls {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+    }
+
+    .sc-btn {
+      font-family: var(--mono);
+      font-size: 0.65rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      background: rgba(245,240,232,0.06);
+      border: 1px solid rgba(245,240,232,0.12);
+      color: rgba(245,240,232,0.55);
+      padding: 0.4rem 0.7rem;
+      cursor: pointer;
+      border-radius: 2px;
+      transition: background 0.15s, color 0.15s;
+      text-align: left;
+    }
+    .sc-btn:hover { background: rgba(74,103,65,0.25); color: rgba(245,240,232,0.9); }
+
+    .sc-input {
+      font-family: var(--mono);
+      font-size: 0.62rem;
+      background: rgba(245,240,232,0.05);
+      border: 1px solid rgba(245,240,232,0.1);
+      color: rgba(245,240,232,0.6);
+      padding: 0.4rem 0.6rem;
+      border-radius: 2px;
+      outline: none;
+      width: 100%;
+      transition: border-color 0.15s;
+    }
+    .sc-input:focus { border-color: rgba(74,103,65,0.6); color: rgba(245,240,232,0.9); }
+    .sc-input::placeholder { color: rgba(245,240,232,0.22); }
+
+    .sc-label {
+      font-family: var(--mono);
+      font-size: 0.6rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: rgba(200,190,170,0.35);
+    }
+
+    /* ─── ABOUT ─── */
+    .about-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 3rem;
+      padding-bottom: 4rem;
+      border-bottom: 1px solid var(--rule);
+    }
+
+    .about-body {
+      font-size: 0.95rem;
+      line-height: 1.8;
+      color: var(--ink-soft);
+    }
+
+    .about-body p + p { margin-top: 1rem; }
+
+    .about-awards {
+      margin-top: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+    }
+
+    .award-row {
+      display: flex;
+      align-items: baseline;
+      gap: 0.75rem;
+      font-size: 0.85rem;
+      color: var(--ink-soft);
+    }
+
+    .award-label {
+      font-family: var(--mono);
+      font-size: 0.62rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--topo-brown);
+      min-width: 120px;
+    }
+
+    .skill-group { margin-top: 1.5rem; }
+
+    .skill-group-title {
+      font-family: var(--mono);
+      font-size: 0.65rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--ink-light);
+      margin-bottom: 0.6rem;
+    }
+
+    .skill-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+    }
+
+    .skill-pill {
+      font-family: var(--mono);
+      font-size: 0.68rem;
+      letter-spacing: 0.04em;
+      color: var(--ink-soft);
+      background: var(--parchment-xdk);
+      border: 1px solid var(--rule-strong);
+      padding: 0.25rem 0.7rem;
+      border-radius: 2px;
+    }
+
+    /* ─── FOOTER ─── */
+    footer {
+      background: var(--ink);
+      color: rgba(245,240,232,0.45);
+      padding: 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-family: var(--mono);
+      font-size: 0.68rem;
+      letter-spacing: 0.06em;
+    }
+
+    footer a {
+      color: rgba(245,240,232,0.55);
+      text-decoration: none;
+      border-bottom: 1px solid rgba(245,240,232,0.15);
+      transition: color 0.15s;
+    }
+    footer a:hover { color: var(--parchment); }
+
+    .footer-links { display: flex; flex-direction: column; gap: 0.4rem; text-align: right; }
+
+    /* ─── RESPONSIVE ─── */
+    @media (max-width: 720px) {
+      .project-card.featured { flex-direction: column; }
+      .project-card-right { width: 100%; }
+      .about-grid { grid-template-columns: 1fr; gap: 2rem; }
+      .nav-right { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ══ HEADER ══ -->
+  <header class="site-header">
+    <!-- Procedural topo contour SVG -->
+    <svg class="topo-bg" viewBox="0 0 1400 340" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <style>
+          .tc { fill: none; stroke-width: 0.8; }
+          .tc-a { stroke: #4a6741; }
+          .tc-b { stroke: #8b6340; }
+          .tc-c { stroke: #3d6b8a; }
+        </style>
+      </defs>
+      <!-- Layered contour rings suggesting a ridge/peak -->
+      <ellipse class="tc tc-a" cx="700" cy="170" rx="580" ry="200"/>
+      <ellipse class="tc tc-a" cx="700" cy="170" rx="500" ry="165"/>
+      <ellipse class="tc tc-b" cx="700" cy="170" rx="420" ry="132"/>
+      <ellipse class="tc tc-a" cx="700" cy="170" rx="345" ry="102"/>
+      <ellipse class="tc tc-c" cx="700" cy="170" rx="274" ry="76"/>
+      <ellipse class="tc tc-a" cx="700" cy="170" rx="206" ry="54"/>
+      <ellipse class="tc tc-b" cx="700" cy="170" rx="144" ry="36"/>
+      <ellipse class="tc tc-a" cx="700" cy="170" rx="88"  ry="22"/>
+      <ellipse class="tc tc-c" cx="700" cy="170" rx="42"  ry="10"/>
+
+      <!-- Secondary hill, left -->
+      <ellipse class="tc tc-b" cx="160" cy="280" rx="240" ry="90"/>
+      <ellipse class="tc tc-a" cx="160" cy="280" rx="175" ry="65"/>
+      <ellipse class="tc tc-c" cx="160" cy="280" rx="115" ry="42"/>
+      <ellipse class="tc tc-b" cx="160" cy="280" rx="64"  ry="22"/>
+
+      <!-- Secondary hill, right -->
+      <ellipse class="tc tc-a" cx="1240" cy="60" rx="280" ry="100"/>
+      <ellipse class="tc tc-c" cx="1240" cy="60" rx="200" ry="70"/>
+      <ellipse class="tc tc-b" cx="1240" cy="60" rx="130" ry="44"/>
+      <ellipse class="tc tc-a" cx="1240" cy="60" rx="70"  ry="22"/>
+
+      <!-- Benchmark cross hairs -->
+      <line x1="698" y1="164" x2="702" y2="168" stroke="#3d6b8a" stroke-width="1.2"/>
+      <line x1="702" y1="164" x2="698" y2="168" stroke="#3d6b8a" stroke-width="1.2"/>
+
+      <!-- Tick marks along bottom like a map border -->
+      <line x1="0"    y1="330" x2="0"    y2="340" stroke="#4a6741" stroke-width="0.8"/>
+      <line x1="100"  y1="330" x2="100"  y2="340" stroke="#4a6741" stroke-width="0.8"/>
+      <line x1="200"  y1="330" x2="200"  y2="340" stroke="#4a6741" stroke-width="0.8"/>
+      <line x1="300"  y1="330" x2="300"  y2="340" stroke="#4a6741" stroke-width="0.8"/>
+      <line x1="400"  y1="330" x2="400"  y2="340" stroke="#4a6741" stroke-width="0.8"/>
+      <line x1="500"  y1="330" x2="500"  y2="340" stroke="#4a6741" stroke-width="0.8"/>
+      <line x1="600"  y1="330" x2="600"  y2="340" stroke="#4a6741" stroke-width="0.8"/>
+      <line x1="700"  y1="330" x2="700"  y2="340" stroke="#4a6741" stroke-width="0.8"/>
+      <line x1="800"  y1="330" x2="800"  y2="340" stroke="#4a6741" stroke-width="0.8"/>
+      <line x1="900"  y1="330" x2="900"  y2="340" stroke="#4a6741" stroke-width="0.8"/>
+      <line x1="1000" y1="330" x2="1000" y2="340" stroke="#4a6741" stroke-width="0.8"/>
+      <line x1="1100" y1="330" x2="1100" y2="340" stroke="#4a6741" stroke-width="0.8"/>
+      <line x1="1200" y1="330" x2="1200" y2="340" stroke="#4a6741" stroke-width="0.8"/>
+      <line x1="1300" y1="330" x2="1300" y2="340" stroke="#4a6741" stroke-width="0.8"/>
+      <line x1="1400" y1="330" x2="1400" y2="340" stroke="#4a6741" stroke-width="0.8"/>
+      <line x1="50"   y1="333" x2="50"   y2="340" stroke="#4a6741" stroke-width="0.5"/>
+      <line x1="150"  y1="333" x2="150"  y2="340" stroke="#4a6741" stroke-width="0.5"/>
+      <line x1="250"  y1="333" x2="250"  y2="340" stroke="#4a6741" stroke-width="0.5"/>
+      <line x1="350"  y1="333" x2="350"  y2="340" stroke="#4a6741" stroke-width="0.5"/>
+      <line x1="450"  y1="333" x2="450"  y2="340" stroke="#4a6741" stroke-width="0.5"/>
+      <line x1="550"  y1="333" x2="550"  y2="340" stroke="#4a6741" stroke-width="0.5"/>
+      <line x1="650"  y1="333" x2="650"  y2="340" stroke="#4a6741" stroke-width="0.5"/>
+      <line x1="750"  y1="333" x2="750"  y2="340" stroke="#4a6741" stroke-width="0.5"/>
+      <line x1="850"  y1="333" x2="850"  y2="340" stroke="#4a6741" stroke-width="0.5"/>
+      <line x1="950"  y1="333" x2="950"  y2="340" stroke="#4a6741" stroke-width="0.5"/>
+      <line x1="1050" y1="333" x2="1050" y2="340" stroke="#4a6741" stroke-width="0.5"/>
+      <line x1="1150" y1="333" x2="1150" y2="340" stroke="#4a6741" stroke-width="0.5"/>
+      <line x1="1250" y1="333" x2="1250" y2="340" stroke="#4a6741" stroke-width="0.5"/>
+      <line x1="1350" y1="333" x2="1350" y2="340" stroke="#4a6741" stroke-width="0.5"/>
+
+      <!-- Grid lines -->
+      <line x1="0" y1="85"  x2="1400" y2="85"  stroke="#4a6741" stroke-width="0.4" stroke-dasharray="4 8" opacity="0.5"/>
+      <line x1="0" y1="170" x2="1400" y2="170" stroke="#4a6741" stroke-width="0.4" stroke-dasharray="4 8" opacity="0.5"/>
+      <line x1="0" y1="255" x2="1400" y2="255" stroke="#4a6741" stroke-width="0.4" stroke-dasharray="4 8" opacity="0.5"/>
+      <line x1="350" y1="0" x2="350" y2="340" stroke="#4a6741" stroke-width="0.4" stroke-dasharray="4 8" opacity="0.5"/>
+      <line x1="700" y1="0" x2="700" y2="340" stroke="#4a6741" stroke-width="0.4" stroke-dasharray="4 8" opacity="0.5"/>
+      <line x1="1050" y1="0" x2="1050" y2="340" stroke="#4a6741" stroke-width="0.4" stroke-dasharray="4 8" opacity="0.5"/>
+
+      <!-- Scale bar bottom right -->
+      <rect x="1260" y="322" width="80" height="3" fill="#4a6741" opacity="0.5"/>
+      <rect x="1260" y="322" width="40" height="3" fill="none" stroke="#4a6741" stroke-width="0.5" opacity="0.5"/>
+      <text x="1280" y="316" font-family="'Fira Mono', monospace" font-size="8" fill="#4a6741" opacity="0.6" text-anchor="middle">10 km</text>
+
+      <!-- Elevation labels -->
+      <text x="700"  y="167" font-family="'Fira Mono', monospace" font-size="7.5" fill="#3d6b8a" opacity="0.7" text-anchor="middle">2,840 m</text>
+      <text x="700"  y="205" font-family="'Fira Mono', monospace" font-size="7"   fill="#4a6741" opacity="0.55" text-anchor="middle">2,600</text>
+      <text x="700"  y="238" font-family="'Fira Mono', monospace" font-size="7"   fill="#4a6741" opacity="0.45" text-anchor="middle">2,400</text>
+    </svg>
+
+    <div class="header-content">
+      <h1 class="header-name">Seb Andrews</h1>
+      <p class="header-subtitle">GIS &amp; Spatial Analysis Portfolio &nbsp;·&nbsp; M.S. &amp; B.S. Earth Systems, Stanford University</p>
+      <p class="header-tools">ArcGIS Pro &nbsp;·&nbsp; ArcGIS Online &nbsp;·&nbsp; Python &nbsp;·&nbsp; QGIS &nbsp;·&nbsp; ACS / Census</p>
+    </div>
+  </header>
+
+  <!-- ══ NAV ══ -->
+  <nav>
+    <ul class="nav-links">
+      <li><a href="#projects">Projects</a></li>
+      <li><a href="#about">About</a></li>
+      <li><a href="#contact">Contact</a></li>
+    </ul>
+    <span class="nav-right">Stanford Doerr School of Sustainability</span>
+  </nav>
+
+  <!-- ══ MAIN ══ -->
+  <main class="page-body">
+
+    <!-- ── PROJECTS ── -->
+    <section id="projects">
+      <h2 class="section-heading">Projects <span>GIS &amp; Spatial Analysis</span></h2>
+
+      <!-- Tag filter -->
+      <div class="tag-filter" id="tag-filter">
+        <button class="tag-btn active" data-tag="all">All</button>
+        <button class="tag-btn" data-tag="3D Modeling">3D Modeling</button>
+        <button class="tag-btn" data-tag="Environmental Justice">Environmental Justice</button>
+        <button class="tag-btn" data-tag="Climate">Climate</button>
+        <button class="tag-btn" data-tag="Bivariate">Bivariate</button>
+        <button class="tag-btn" data-tag="Python">Python</button>
+        <button class="tag-btn" data-tag="ArcGIS Online">ArcGIS Online</button>
+      </div>
+
+      <div class="project-grid" id="project-grid">
+
+        <!-- FEATURED: 3D Scene Viewer -->
+        <div class="project-card featured" data-tags="3D Modeling,ArcGIS Online">
+          <div class="project-card-left">
+            <span class="featured-badge">↳ Interactive Scene</span>
+            <div class="project-num">01</div>
+            <h3 class="project-title">3D Scene Viewer</h3>
+            <p class="project-desc">
+              Live ArcGIS SceneView embedded directly in the portfolio. Load any published Web Scene by pasting an Item ID below — supports feature layers, scene layers, building scenes, and Living Atlas content. Navigate freely: orbit, pan, zoom, and tilt.
+            </p>
+            <div class="project-tags">
+              <span class="project-tag">ArcGIS Maps SDK 4.29</span>
+              <span class="project-tag">3D Modeling</span>
+              <span class="project-tag">ArcGIS Online</span>
+              <span class="project-tag">Web Scene</span>
+            </div>
+          </div>
+
+          <div class="project-card-right">
+            <div class="scene-embed-wrap">
+              <div class="scene-loading" id="scene-loading">
+                <div class="spin-ring"></div>
+                <span class="spin-label">Initializing scene</span>
+              </div>
+              <div id="scene-container"></div>
+            </div>
+            <div class="scene-controls" style="margin-top:0.5rem;">
+              <span class="sc-label">Load custom scene</span>
+              <input class="sc-input" id="sc-itemid" type="text" placeholder="ArcGIS Item ID (32 chars)" />
+              <button class="sc-btn" onclick="loadCustomScene()">↳ Load Scene</button>
+              <button class="sc-btn" onclick="resetCamera()">Reset View</button>
+              <button class="sc-btn" onclick="toggleBasemap()">Toggle Basemap</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- PROJECT 2 -->
+        <div class="project-card" data-tags="Bivariate,Environmental Justice,Climate">
+          <div class="project-num">02</div>
+          <h3 class="project-title">Heat Wave Frequency &amp; Displacement Risk</h3>
+          <p class="project-desc">Bivariate choropleth mapping heat wave frequency against displacement risk indicators by census tract across California, using ACS 5-year estimates and tercile classification.</p>
+          <div class="project-tags">
+            <span class="project-tag">ArcGIS Pro</span>
+            <span class="project-tag">Bivariate</span>
+            <span class="project-tag">Environmental Justice</span>
+            <span class="project-tag">Census ACS</span>
+          </div>
+        </div>
+
+        <!-- PROJECT 3 -->
+        <div class="project-card" data-tags="Climate,Python">
+          <div class="project-num">03</div>
+          <h3 class="project-title">Industrial Decarbonization Spatial Analysis</h3>
+          <p class="project-desc">GIS analysis supporting state-level industrial decarbonization policy research — mapping cement, steel, and aluminum facilities against C-PACE financing eligibility zones and embodied carbon standards.</p>
+          <div class="project-tags">
+            <span class="project-tag">ArcGIS Pro</span>
+            <span class="project-tag">Python</span>
+            <span class="project-tag">Climate</span>
+            <span class="project-tag">C-PACE</span>
+          </div>
+        </div>
+
+        <!-- PROJECT 4 -->
+        <div class="project-card" data-tags="Environmental Justice,ArcGIS Online,Python">
+          <div class="project-num">04</div>
+          <h3 class="project-title">Urban Heat &amp; Equity Dashboard</h3>
+          <p class="project-desc">ArcGIS Online dashboard synthesizing environmental exposure, socioeconomic vulnerability, and proximity-to-green-space data for Bay Area communities, built in support of local government sustainability work.</p>
+          <div class="project-tags">
+            <span class="project-tag">ArcGIS Online</span>
+            <span class="project-tag">Python</span>
+            <span class="project-tag">Environmental Justice</span>
+            <span class="project-tag">Local Gov</span>
+          </div>
+        </div>
+
+        <!-- PROJECT 5 -->
+        <div class="project-card" data-tags="Climate,Bivariate">
+          <div class="project-num">05</div>
+          <h3 class="project-title">Subnational Emissions Modeling</h3>
+          <p class="project-desc">Spatial emissions inventory and visualization at the county level, combining facility-level EPA reporting, satellite-derived methane estimates, and census-normalized exposure metrics.</p>
+          <div class="project-tags">
+            <span class="project-tag">ArcGIS Pro</span>
+            <span class="project-tag">Bivariate</span>
+            <span class="project-tag">Climate</span>
+            <span class="project-tag">EPA Data</span>
+          </div>
+        </div>
+
+        <!-- PROJECT 6 -->
+        <div class="project-card" data-tags="Environmental Justice,Python">
+          <div class="project-num">06</div>
+          <h3 class="project-title">Denver Climate Action Plan — Governance Gap Analysis</h3>
+          <p class="project-desc">Spatial and policy analysis of Denver's Climate Action Plan, mapping TABOR-constrained municipal authority against transportation and building sector emissions targets across fragmented regional governance.</p>
+          <div class="project-tags">
+            <span class="project-tag">QGIS</span>
+            <span class="project-tag">Environmental Justice</span>
+            <span class="project-tag">Policy</span>
+          </div>
+        </div>
+
+      </div><!-- /project-grid -->
+    </section>
+
+    <!-- ── ABOUT ── -->
+    <section id="about">
+      <h2 class="section-heading">About <span>Background &amp; Skills</span></h2>
+      <div class="about-grid">
+        <div>
+          <div class="about-body">
+            <p>Seb Andrews is a fifth-year coterminal student at Stanford University pursuing an M.S. in Earth Systems, following a B.S. in Earth Systems. His research spans climate and energy policy, GIS and spatial analysis, extractive industry accountability, and urban equity — with a focus on how subnational governance structures shape climate outcomes.</p>
+            <p>He has worked at the Environmental Defense Fund, co-authored a peer-reviewed publication, and conducted research on local government sustainability capacity in the Bay Area. He goes professionally by Seb Andrews.</p>
+            <p>His GIS work centers on bivariate symbology, census-derived equity indicators, and 3D scene analysis — currently building a displacement and heat vulnerability dataset for California using ACS variables in ArcGIS Pro.</p>
+          </div>
+          <div class="about-awards">
+            <div class="award-row">
+              <span class="award-label">Co-authored</span>
+              <span>Peer-reviewed publication, Earth Systems</span>
+            </div>
+            <div class="award-row">
+              <span class="award-label">Experience</span>
+              <span>Environmental Defense Fund</span>
+            </div>
+            <div class="award-row">
+              <span class="award-label">GPA</span>
+              <span>Undergraduate 3.917 &nbsp;·&nbsp; Graduate 4.118</span>
+            </div>
+            <div class="award-row">
+              <span class="award-label">Graduating</span>
+              <span>June 2026</span>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="skill-group">
+            <div class="skill-group-title">GIS &amp; Spatial</div>
+            <div class="skill-pills">
+              <span class="skill-pill">ArcGIS Pro</span>
+              <span class="skill-pill">ArcGIS Online</span>
+              <span class="skill-pill">QGIS</span>
+              <span class="skill-pill">ArcGIS Maps SDK</span>
+              <span class="skill-pill">Bivariate Symbology</span>
+              <span class="skill-pill">3D Scene Layers</span>
+              <span class="skill-pill">Census ACS</span>
+              <span class="skill-pill">Spatial Statistics</span>
+            </div>
+          </div>
+          <div class="skill-group" style="margin-top:1.25rem;">
+            <div class="skill-group-title">Analysis &amp; Policy</div>
+            <div class="skill-pills">
+              <span class="skill-pill">Python</span>
+              <span class="skill-pill">Emissions Modeling</span>
+              <span class="skill-pill">C-PACE Finance</span>
+              <span class="skill-pill">Climate Policy</span>
+              <span class="skill-pill">Urban Planning</span>
+              <span class="skill-pill">Environmental Justice</span>
+              <span class="skill-pill">Subnational Gov</span>
+            </div>
+          </div>
+          <div class="skill-group" style="margin-top:1.25rem;">
+            <div class="skill-group-title">Currently Seeking</div>
+            <div class="skill-pills">
+              <span class="skill-pill">Clean Energy</span>
+              <span class="skill-pill">Climate Policy</span>
+              <span class="skill-pill">Environmental Consulting</span>
+              <span class="skill-pill">Urban Planning — SF / Berkeley</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ── FOOTER / CONTACT ── -->
+  <footer id="contact">
+    <span>© 2026 Seb Andrews &nbsp;·&nbsp; GIS &amp; Earth Systems, Stanford</span>
+    <div class="footer-links">
+      <a href="mailto:sebandrews@stanford.edu">sebandrews@stanford.edu</a>
+      <a href="https://www.linkedin.com/in/seb-andrews" target="_blank" rel="noopener">linkedin.com/in/seb-andrews</a>
+    </div>
+  </footer>
+
+  <!-- ══ SCRIPTS ══ -->
+  <script>
+    // ── Tag filter ──
+    const tagBtns = document.querySelectorAll('.tag-btn');
+    const cards   = document.querySelectorAll('.project-card:not(.featured)');
+
+    tagBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        tagBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const tag = btn.dataset.tag;
+        cards.forEach(card => {
+          const cardTags = card.dataset.tags || '';
+          card.classList.toggle('hidden', tag !== 'all' && !cardTags.includes(tag));
+        });
+      });
+    });
+
+    // ── ArcGIS Scene ──
+    let sceneView = null;
+    let defaultCamera = null;
+    let basemapAlt = false;
+
+    require(["esri/WebScene", "esri/views/SceneView", "esri/widgets/Zoom"], function(
+      WebScene, SceneView, Zoom
+    ) {
+      const DEFAULT_ID = "3a9976d3628c4d6ba6e6f94c01cb0b06";
+
+      function loadScene(itemId) {
+        if (sceneView) { sceneView.destroy(); sceneView = null; }
+
+        document.getElementById("scene-loading").style.display = "flex";
+        document.getElementById("scene-loading").classList.remove("fade");
+
+        const scene = new WebScene({ portalItem: { id: itemId } });
+        const view  = new SceneView({
+          container: "scene-container",
+          map: scene,
+          ui: { components: [] }
+        });
+
+        view.when(() => {
+          defaultCamera = view.camera.clone();
+          const el = document.getElementById("scene-loading");
+          el.classList.add("fade");
+          setTimeout(() => el.style.display = "none", 500);
+        }, err => {
+          document.querySelector(".spin-label").textContent = "Scene unavailable";
+          console.warn(err);
+        });
+
+        view.ui.add(new Zoom({ view }), "bottom-right");
+        sceneView = view;
+      }
+
+      window.loadCustomScene = function() {
+        const raw = document.getElementById("sc-itemid").value.trim();
+        const match = raw.match(/([a-f0-9]{32})/i);
+        if (!match) { alert("Enter a valid 32-character ArcGIS Item ID."); return; }
+        loadScene(match[1]);
+      };
+
+      window.resetCamera = function() {
+        if (sceneView && defaultCamera) sceneView.goTo(defaultCamera, { speedFactor: 1.4 });
+      };
+
+      window.toggleBasemap = function() {
+        if (!sceneView) return;
+        basemapAlt = !basemapAlt;
+        sceneView.map.basemap = basemapAlt ? "satellite" : "topo-vector";
+      };
+
+      loadScene(DEFAULT_ID);
+    });
+  </script>
+</body>
+</html>
